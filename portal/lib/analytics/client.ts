@@ -8,6 +8,7 @@ const mockSummary: AnalyticsSummary = {
   failed: 35,
   asr: 129 / 164,
   acdSeconds: 92.4,
+  avgPddMs: 412,
   sellCost: 18.72,
   buyCost: 11.36,
   grossMargin: 7.36,
