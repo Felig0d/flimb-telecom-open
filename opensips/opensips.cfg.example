@@ -1,0 +1,79 @@
+#### FLIMB Telecom Open - public synthetic example
+#### OpenSIPS 3.6.x + CGRateS
+#### NOT a production configuration
+
+log_level=3
+xlog_level=3
+udp_workers=4
+
+socket=udp:0.0.0.0:5060
+
+loadmodule "sl.so"
+loadmodule "tm.so"
+loadmodule "rr.so"
+loadmodule "maxfwd.so"
+loadmodule "dialog.so"
+loadmodule "xlog.so"
+loadmodule "cgrates.so"
+
+# CGRateS connector.
+# 2014 is the default CGRateS bidirectional JSON-RPC port used by this module.
+modparam("cgrates", "cgrates_engine", "127.0.0.1:2014")
+modparam("cgrates", "retry_timeout", 10)
+
+route {
+    if (!mf_process_maxfwd_header("10")) {
+        sl_send_reply("483", "Too Many Hops");
+        exit;
+    }
+
+    # CANCEL follows the matching INVITE transaction.
+    if (is_method("CANCEL")) {
+        if (t_check_trans())
+            t_relay();
+        exit;
+    }
+
+    # In-dialog requests follow the Route set.
+    if (has_totag()) {
+        if (loose_route()) {
+            if (!t_relay())
+                sl_reply_error();
+            exit;
+        }
+
+        if (is_method("ACK") && t_check_trans()) {
+            t_relay();
+            exit;
+        }
+
+        sl_send_reply("404", "Not Here");
+        exit;
+    }
+
+    if (!is_method("INVITE")) {
+        sl_send_reply("405", "Method Not Allowed");
+        exit;
+    }
+
+    record_route();
+
+    # Native CGRateS authorization. Fail closed.
+    if (!cgrates_auth("$fU", "$rU")) {
+        sl_send_reply("402", "Payment Required");
+        exit;
+    }
+
+    # Bind accounting to the SIP dialog.
+    # Session start occurs on successful 2xx answer and termination follows dialog end.
+    if (cgrates_acc("cdr|missed", "$fU", "$rU") < 0) {
+        sl_send_reply("500", "Charging Setup Failed");
+        exit;
+    }
+
+    # Synthetic upstream only. Replace in a private/local configuration.
+    $du = "sip:127.0.0.1:5090";
+
+    if (!t_relay())
+        sl_reply_error();
+}
