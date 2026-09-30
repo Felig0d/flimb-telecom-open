@@ -4,16 +4,14 @@
 --
 -- Do not commit the actual password.
 
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'replicator') THEN
-        EXECUTE format(
-            'CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD %L',
-            :'repl_password'
-        );
-    END IF;
-END
-$$;
+SELECT format(
+    'CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD %L',
+    :'repl_password'
+)
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = 'replicator'
+)
+\gexec
 
 -- Also configure the primary server with values appropriate for your DEV host:
 --
