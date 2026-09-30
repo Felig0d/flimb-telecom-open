@@ -33,10 +33,12 @@ SQL
 done
 
 echo "Applying ODIN schema"
-PGDATABASE=odin PGUSER=odin_app   psql -v ON_ERROR_STOP=1 -f database/odin/001_init.sql
+PGDATABASE=odin PGUSER=odin_app PGPASSWORD="$ODIN_APP_PASSWORD"   psql -v ON_ERROR_STOP=1 -f database/odin/001_init.sql
 
-echo "Applying Analytics schema"
-PGDATABASE=analytics PGUSER=analytics_app   psql -v ON_ERROR_STOP=1 -f database/analytics/001_init.sql
+echo "Applying Analytics schemas"
+PGDATABASE=analytics PGUSER=analytics_app PGPASSWORD="$ANALYTICS_APP_PASSWORD"   psql -v ON_ERROR_STOP=1 -f database/analytics/001_init.sql
+
+PGDATABASE=analytics PGUSER=analytics_app PGPASSWORD="$ANALYTICS_APP_PASSWORD"   psql -v ON_ERROR_STOP=1 -f database/analytics/003_metrics_enrichment.sql
 
 cat <<'EOF'
 
@@ -47,4 +49,5 @@ Next:
 - initialize OpenSIPS with its native PostgreSQL schema tooling
 - initialize CGRateS StorDB with its native migration tooling
 - initialize Flimb Central from its own repository migrations
+- create analytics_reader with database/analytics/002_read_role.sql
 EOF
