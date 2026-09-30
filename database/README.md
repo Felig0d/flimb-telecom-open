@@ -8,7 +8,8 @@ PostgreSQL cluster
 ├── flimb_central
 ├── odin
 ├── opensips
-└── cgrates
+├── cgrates
+└── analytics
 
 Redis
 └── CGRateS DataDB
@@ -17,27 +18,27 @@ NATS JetStream
 └── provisioning / domain events
 ```
 
-## Important
+Each database has a separate owner/role and migration lifecycle even when all databases share one DEV PostgreSQL cluster.
 
-The public repository contains only generic schemas and synthetic examples.
+## Read-plane
 
-No production credentials, topology, customer records or commercial data belong here.
+Dashboards, CDR search, ASR/ACD/PDD and historical reports use the Analytics API backed by `analytics` or an approved read replica.
+
+Runtime services keep writing to their authoritative stores.
 
 ## DEV functional HA
-
-The intended first HA exercise is:
 
 ```text
 PostgreSQL PRIMARY
 - native host installation
-- port 5432
+- 5432
 
 PostgreSQL STANDBY
-- Docker container
-- port 5433
+- Docker
+- 5433
 - separate volume
 ```
 
-This validates streaming replication, promotion, rejoin, application reconnect and split-brain protections. It does **not** validate host-level HA because both instances share one physical machine.
+This validates streaming replication, promotion, reconnect, rejoin and split-brain protections. It does not validate physical-host HA.
 
 See `database/ha-lab/README.md`.
