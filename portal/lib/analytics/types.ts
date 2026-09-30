@@ -5,6 +5,7 @@ export type AnalyticsSummary = {
   failed: number;
   asr: number | null;
   acdSeconds: number | null;
+  avgPddMs: number | null;
   sellCost: number;
   buyCost: number;
   grossMargin: number;
