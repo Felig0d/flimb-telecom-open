@@ -1,25 +1,25 @@
-# ODIN Analytics API
+# ODIN Analytics
 
-Read-only service for CDR exploration and telecom metrics.
+Two deliberately separate processes:
+
+- **API**: read-only CDR/metrics access for ODIN Portal and Central.
+- **Consumer**: idempotent NATS event ingestion into the analytics projection.
 
 ## Responsibilities
 
-- ASR / ACD / PDD reporting
-- CDR search
-- supplier/route metrics
+- ASR / ACD / PDD
+- CDR exploration
+- supplier/route quality metrics
 - SELL/BUY/margin reporting
 - RA reporting
 
-## Non-responsibilities
+## Boundaries
 
-This service does not:
+This service never authorizes calls, starts/terminates CGRateS sessions or decides SIP dialog state.
 
-- authorize calls
-- start/terminate CGRateS sessions
-- decide SIP dialog state
-- write to OpenSIPS or CGRateS runtime stores
+The API can read from a PostgreSQL replica. The consumer writes only to the dedicated analytics projection database.
 
-## Run
+## API
 
 ```bash
 cd analytics
@@ -30,6 +30,12 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8086
 ```
 
-Point `ANALYTICS_DATABASE_URL` at the analytics projection or approved read replica.
+## Consumer
 
-The browser/portal should consume this API rather than PostgreSQL directly.
+```bash
+python -m app.consumer
+```
+
+Events are defined in `docs/EVENT_CONTRACTS.md`. Replaying the same `eventId` is idempotent.
+
+The browser consumes the API; it never connects to PostgreSQL directly.
