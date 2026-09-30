@@ -14,8 +14,11 @@ fi
 if [[ ! -s "$PGDATA/PG_VERSION" ]]; then
   rm -rf "$PGDATA"/*
   export PGPASSWORD="$REPL_PASSWORD"
+
   pg_basebackup     -h "$PRIMARY_HOST"     -p "$PRIMARY_PORT"     -U "$REPL_USER"     -D "$PGDATA"     -Fp     -Xs     -P     -R
+
   unset PGPASSWORD
+  chown -R postgres:postgres "$PGDATA"
 fi
 
 exec docker-entrypoint.sh postgres
