@@ -1,9 +1,22 @@
 # OpenSIPS
 
-Public beta workspace for OpenSIPS configuration examples.
+Baseline: **OpenSIPS 3.6.9 LTS**.
 
-Baseline:
+The beta intentionally exercises native OpenSIPS behavior instead of application-side SIP lifecycle orchestration.
 
-- OpenSIPS 3.6.9 LTS
+## Main example
 
-Only sanitized, environment-agnostic examples belong here. Do not commit production addresses, credentials, customer data, private routing policy, or incident evidence.
+`opensips.cfg.example` demonstrates:
+
+- stateful transaction handling
+- CANCEL transaction matching
+- Record-Route / loose routing
+- dialog-aware CGRateS accounting
+- prepaid fail-closed authorization
+- synthetic upstream routing
+
+## Optional routing
+
+`drouting-snippet.cfg.example` documents the intended native gateway-failover pattern using `do_routing()`, `next_routing()` and `failure_route`.
+
+Do not add production topology, credentials or provider identifiers to this public repository.
