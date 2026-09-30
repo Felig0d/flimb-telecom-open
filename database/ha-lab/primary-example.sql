@@ -1,10 +1,16 @@
--- DEV example only. Run with an appropriately privileged PostgreSQL role.
--- Replace the password before use.
+-- DEV example only.
+-- Usage:
+--   psql -v repl_password="'<local-secret>'" -f primary-example.sql
+--
+-- Do not commit the actual password.
 
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'replicator') THEN
-        CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD 'dev-only-change-me';
+        EXECUTE format(
+            'CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD %L',
+            :'repl_password'
+        );
     END IF;
 END
 $$;
@@ -17,4 +23,4 @@ $$;
 -- hot_standby = on
 --
 -- Add a narrowly scoped pg_hba.conf replication rule for the Docker network.
--- Do not copy broad trust rules into production.
+-- Never use a broad trust rule as a shortcut.
