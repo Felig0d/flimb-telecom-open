@@ -2,16 +2,14 @@
 -- Usage:
 --   psql analytics -v reader_password="'<local-secret>'" -f 002_read_role.sql
 
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'analytics_reader') THEN
-        EXECUTE format(
-            'CREATE ROLE analytics_reader LOGIN PASSWORD %L',
-            :'reader_password'
-        );
-    END IF;
-END
-$$;
+SELECT format(
+    'CREATE ROLE analytics_reader LOGIN PASSWORD %L',
+    :'reader_password'
+)
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = 'analytics_reader'
+)
+\gexec
 
 GRANT CONNECT ON DATABASE analytics TO analytics_reader;
 GRANT USAGE ON SCHEMA public TO analytics_reader;
