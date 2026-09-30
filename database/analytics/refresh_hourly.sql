@@ -14,9 +14,9 @@ INSERT INTO traffic_hourly (
 )
 SELECT
     date_trunc('hour', started_at) AS bucket_start,
-    tenant_ref,
-    supplier_ref,
-    route_ref,
+    COALESCE(tenant_ref, '') AS tenant_ref,
+    COALESCE(supplier_ref, '') AS supplier_ref,
+    COALESCE(route_ref, '') AS route_ref,
     count(*) AS attempts,
     count(*) FILTER (WHERE answered) AS answered,
     count(*) FILTER (WHERE NOT answered) AS failed,
