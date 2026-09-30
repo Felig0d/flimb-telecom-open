@@ -1,44 +1,56 @@
 # Native SIP + Charging Beta
 
-This public beta explores a minimal real-time path using native OpenSIPS and CGRateS capabilities.
-
 ## Baseline
 
 - OpenSIPS 3.6.9 LTS
 - CGRateS
-- Synthetic accounts and destinations only
+- synthetic data only
 
-## Runtime principle
+## Runtime boundary
 
 ```text
-SIP endpoint
-    |
-    v
 OpenSIPS
-  - transaction handling
-  - dialog tracking
-  - routing/failover
-  - CGRateS authorization/accounting
-    |
-    +----> CGRateS
-            - authorization
-            - SessionS
-            - RALs
-            - debit/balance
-            - cost/CDR
+  - SIP transactions
+  - Record-Route / in-dialog routing
+  - dialog lifecycle
+  - gateway routing/failover
+  - CGRateS authorization/accounting adapter
+        |
+        v
+CGRateS
+  - SessionS
+  - RALs
+  - prepaid/postpaid charging
+  - debit / balance
+  - cost / CDR
+  - native disconnect
 ```
 
-Application/control-plane systems should not be required for an established SIP dialog to terminate cleanly.
+Application/control-plane software is intentionally excluded from the real-time lifecycle in this beta.
 
-## Beta invariants
+## Invariants
 
-1. Authorization failure is fail-closed.
-2. A successful SIP dialog maps to one charging session.
-3. Retransmissions must not create duplicate charging sessions.
-4. Dialog termination must close accounting without an application-side state machine.
-5. Routing failure before answer must end as a failed attempt, not an orphan session.
-6. Monitoring observes the runtime; it is not a second lifecycle authority.
+1. Authorization/charging failure is fail-closed.
+2. Monitoring failure alone does not terminate a healthy call.
+3. SIP dialog identity and charging identity remain stable for the call.
+4. Successful dialog -> one charging session.
+5. Dialog end -> charging session termination.
+6. Retransmission/re-INVITE does not create a second charging session.
+7. Gateway routing state is not required to terminate an established charging session.
+8. A failed attempt before financial start ends as failed, not pending.
 
-## Public-repository rule
+## Native behavior being exercised
 
-All examples use loopback, TEST-NET addresses, synthetic identities and placeholder credentials. No production topology or commercial data belongs here.
+OpenSIPS `cgrates_acc()` is dialog-aware: it prepares accounting on the initial INVITE, starts the CGRateS session when the call is answered with 2xx and ends the session when the dialog terminates.
+
+OpenSIPS can maintain multiple CGRateS engine connections for failover. CGRateS SessionS uses bidirectional agent connections when it needs to send requests back toward the SIP side.
+
+## Out of scope for the first beta
+
+- production cutover
+- production HA
+- real customer data
+- automatic promotion/fencing
+- custom financial state machine
+- application-side winner arming
+- application-side START/TERMINATE queues
