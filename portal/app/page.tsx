@@ -1,9 +1,5 @@
-const services = [
-  { name: "OpenSIPS", state: "Online", detail: "SIP edge", metric: "18 dialogs" },
-  { name: "CGRateS", state: "Online", detail: "Charging", metric: "18 sessions" },
-  { name: "PostgreSQL", state: "Online", detail: "Storage", metric: "12 ms" },
-  { name: "Redis", state: "Online", detail: "DataDB", metric: "4 ms" }
-];
+import { getAnalyticsSummary } from "@/lib/analytics/client";
+import { getOverview } from "@/lib/fti/client";
 
 const events = [
   { time: "10:42:17", title: "Chamada encerrada", meta: "Synthetic Call-ID · billing reconciled" },
@@ -20,6 +16,7 @@ const nav = [
   "Clientes",
   "Fornecedores",
   "CDRs",
+  "Analytics",
   "Revenue Assurance",
   "Infraestrutura",
   "Alertas",
@@ -31,7 +28,26 @@ function StatusDot({ ok = true }: { ok?: boolean }) {
   return <span className={ok ? "dot dotOk" : "dot dotWarn"} />;
 }
 
-export default function Home() {
+function pct(value: number | null) {
+  return value === null ? "—" : `${(value * 100).toFixed(1)}%`;
+}
+
+export default async function Home() {
+  const [overview, analytics] = await Promise.all([
+    getOverview(),
+    getAnalyticsSummary(60)
+  ]);
+
+  const allHealthy = overview.services.every((service) => service.state === "ok");
+
+  const services = overview.services.map((service) => ({
+    name: service.name,
+    state: service.state === "ok" ? "Online" : service.state,
+    detail: service.detail ?? "service",
+    metric: service.latencyMs !== undefined ? `${service.latencyMs} ms` : "—",
+    ok: service.state === "ok"
+  }));
+
   return (
     <main className="shell">
       <aside className="sidebar">
@@ -54,7 +70,7 @@ export default function Home() {
 
         <div className="sidebarFooter">
           <div className="environment">DEV / BETA</div>
-          <small>Synthetic data only</small>
+          <small>Adapter-driven data</small>
         </div>
       </aside>
 
@@ -65,8 +81,11 @@ export default function Home() {
             <h1>Visão geral</h1>
           </div>
           <div className="topActions">
-            <div className="healthBadge"><StatusDot /> Plataforma saudável</div>
-            <button className="button secondary">Últimos 15 min</button>
+            <div className="healthBadge">
+              <StatusDot ok={allHealthy} />
+              {allHealthy ? "Plataforma saudável" : "Atenção necessária"}
+            </div>
+            <button className="button secondary">Últimos 60 min</button>
             <button className="button">Atualizar</button>
           </div>
         </header>
@@ -75,33 +94,42 @@ export default function Home() {
           <article className="heroCard primaryCard">
             <div>
               <span className="cardLabel">Chamadas ativas</span>
-              <strong className="bigNumber">18</strong>
+              <strong className="bigNumber">{overview.activeCalls}</strong>
             </div>
-            <div className="trend">+12% agora</div>
+            <div className="trend">ASR {pct(analytics.asr)}</div>
           </article>
 
           <article className="heroCard">
             <div>
               <span className="cardLabel">Sessões CGRateS</span>
-              <strong className="bigNumber">18</strong>
+              <strong className="bigNumber">{overview.activeChargingSessions}</strong>
             </div>
-            <span className="miniStatus"><StatusDot /> 100% correlacionadas</span>
+            <span className="miniStatus">
+              <StatusDot ok={overview.orphanSessions === 0} />
+              {overview.orphanSessions} órfãs
+            </span>
           </article>
 
           <article className="heroCard">
             <div>
               <span className="cardLabel">Revenue Assurance</span>
-              <strong className="bigNumber">PASS</strong>
+              <strong className="bigNumber">{overview.raStatus.toUpperCase()}</strong>
             </div>
-            <span className="miniStatus"><StatusDot /> 0 divergências</span>
+            <span className="miniStatus">
+              <StatusDot ok={overview.raStatus === "pass"} />
+              {analytics.raFailures} divergências na janela
+            </span>
           </article>
 
           <article className="heroCard">
             <div>
               <span className="cardLabel">Alertas críticos</span>
-              <strong className="bigNumber">0</strong>
+              <strong className="bigNumber">{overview.criticalAlerts}</strong>
             </div>
-            <span className="miniStatus"><StatusDot /> Ambiente estável</span>
+            <span className="miniStatus">
+              <StatusDot ok={overview.criticalAlerts === 0} />
+              {overview.criticalAlerts === 0 ? "Ambiente estável" : "Requer atenção"}
+            </span>
           </article>
         </section>
 
@@ -126,7 +154,9 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="serviceMetric">{service.metric}</div>
-                  <div className="serviceState"><StatusDot /> {service.state}</div>
+                  <div className="serviceState">
+                    <StatusDot ok={service.ok} /> {service.state}
+                  </div>
                 </div>
               ))}
             </div>
@@ -135,16 +165,16 @@ export default function Home() {
           <article className="panel financePanel">
             <div className="panelHeader">
               <div>
-                <span className="cardLabel">Charging</span>
-                <h2>Saúde financeira</h2>
+                <span className="cardLabel">Telecom Analytics</span>
+                <h2>Qualidade e financeiro</h2>
               </div>
             </div>
 
             <div className="financeStats">
-              <div><span>START p99</span><strong>84 ms</strong></div>
-              <div><span>END p99</span><strong>61 ms</strong></div>
-              <div><span>Sessões órfãs</span><strong>0</strong></div>
-              <div><span>CDRs abertos</span><strong>0</strong></div>
+              <div><span>ASR</span><strong>{pct(analytics.asr)}</strong></div>
+              <div><span>ACD</span><strong>{analytics.acdSeconds?.toFixed(1) ?? "—"} s</strong></div>
+              <div><span>START p99</span><strong>{overview.startP99Ms ?? "—"} ms</strong></div>
+              <div><span>END p99</span><strong>{overview.endP99Ms ?? "—"} ms</strong></div>
             </div>
 
             <div className="barChart" aria-label="Synthetic activity chart">
@@ -152,7 +182,10 @@ export default function Home() {
                 <span key={index} style={{ height: `${height}%` }} />
               ))}
             </div>
-            <div className="chartLegend"><span>últimos 60 minutos</span><strong>estável</strong></div>
+            <div className="chartLegend">
+              <span>{analytics.attempts} tentativas / {analytics.answered} atendidas</span>
+              <strong>margem {analytics.grossMargin.toFixed(2)}</strong>
+            </div>
           </article>
 
           <article className="panel eventsPanel">
@@ -187,16 +220,16 @@ export default function Home() {
             </div>
 
             <div className="correlation">
-              <div className="correlationNode"><span>Dialogs SIP</span><strong>18</strong></div>
+              <div className="correlationNode"><span>Chamadas</span><strong>{overview.activeCalls}</strong></div>
               <div className="connector">↔</div>
-              <div className="correlationNode"><span>Sessions</span><strong>18</strong></div>
+              <div className="correlationNode"><span>Sessions</span><strong>{overview.activeChargingSessions}</strong></div>
             </div>
 
             <div className="checks">
-              <div><StatusDot /> CGRateS sem dialog SIP <strong>0</strong></div>
-              <div><StatusDot /> Dialog sem sessão financeira <strong>0</strong></div>
-              <div><StatusDot /> Saldo zero com sessão ativa <strong>0</strong></div>
-              <div><StatusDot /> SELL/BUY ausente <strong>0</strong></div>
+              <div><StatusDot ok={overview.orphanSessions === 0} /> Sessões órfãs <strong>{overview.orphanSessions}</strong></div>
+              <div><StatusDot ok={overview.openCdrs === 0} /> CDRs abertos <strong>{overview.openCdrs}</strong></div>
+              <div><StatusDot ok={analytics.raFailures === 0} /> RA divergente <strong>{analytics.raFailures}</strong></div>
+              <div><StatusDot /> SELL / BUY <strong>{analytics.sellCost.toFixed(2)} / {analytics.buyCost.toFixed(2)}</strong></div>
             </div>
           </article>
         </section>
