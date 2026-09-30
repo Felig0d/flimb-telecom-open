@@ -9,7 +9,15 @@ Recommended DEV databases:
 - `odin`
 - `opensips`
 - `cgrates`
+- `analytics`
 
-Each service should have a dedicated login role and should not receive ownership or write privileges in another domain database.
+Each service receives a dedicated login role and must not write into another domain database.
 
-Use service-native schema installers for Authentik, OpenSIPS and CGRateS. Use the ODIN migrations under `database/odin/` for the ODIN-owned schema.
+Use service-native schema installers for Authentik, OpenSIPS and CGRateS.
+
+Repository-owned migrations:
+
+- ODIN: `database/odin/`
+- Analytics projection: `database/analytics/`
+
+The bootstrap script creates databases/roles and applies the repository-owned initial schemas. Passwords come only from local environment variables.
