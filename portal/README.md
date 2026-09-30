@@ -1,46 +1,43 @@
 # ODIN Beta Portal
 
-Public, synthetic control-center UI for the native OpenSIPS + CGRateS beta.
+Public control-center UI for the native OpenSIPS + CGRateS beta.
 
 ## Stack
 
-- Next.js 16.3.6
-- React 19.3
+- Next.js 16.3.x
+- React 19
 - TypeScript
 - App Router
-- no UI framework dependency
+
+## Data adapters
+
+The portal never connects directly to PostgreSQL, Redis, OpenSIPS management interfaces or CGRateS RPC.
+
+It uses server-side adapters:
+
+- FTI operational API -> active calls, sessions, health, RA status
+- ODIN Analytics API -> CDR/ASR/ACD/PDD/historical reporting
+
+Both adapters have safe synthetic/mock defaults for public DEV.
 
 ## Run
 
 ```bash
 cd portal
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-Health:
+## API bridges
 
-```text
-GET /api/health
-```
+- `GET /api/health`
+- `GET /api/fti/overview`
+- `GET /api/fti/calls`
+- `GET /api/fti/revenue-assurance`
+- `GET /api/analytics/summary`
+- `GET /api/analytics/hourly`
 
-## Current data
-
-All dashboard values are synthetic placeholders. The portal is intentionally disconnected from production systems.
-
-## Next integration
-
-Replace the synthetic values with a small read-only telemetry API for:
-
-- OpenSIPS service health
-- CGRateS service health
-- active SIP dialogs
-- active charging sessions
-- RPC latency/errors
-- START/END latency
-- orphan correlation
-- CDR / Revenue Assurance status
-
-Keep operational writes and sensitive configuration out of the public beta.
+Keep secrets and internal endpoint mappings in private/local environment files.
