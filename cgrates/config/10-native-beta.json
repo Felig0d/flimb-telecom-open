@@ -1,0 +1,29 @@
+{
+  "general": {
+    "default_request_type": "*prepaid",
+    "default_category": "call",
+    "default_tenant": "example.org",
+    "default_timezone": "UTC"
+  },
+  "listen": {
+    "rpc_json": "127.0.0.1:2012",
+    "birpc_json": "127.0.0.1:2014"
+  },
+  "rals": {
+    "enabled": true
+  },
+  "cdrs": {
+    "enabled": true
+  },
+  "sessions": {
+    "enabled": true,
+    "rals_conns": ["*internal"],
+    "cdrs_conns": ["*internal"],
+    "debit_interval": "5s",
+    "store_session_costs": true,
+    "session_ttl": "0s",
+    "channel_sync_interval": "0",
+    "terminate_attempts": 5,
+    "session_indexes": ["OriginID"]
+  }
+}
