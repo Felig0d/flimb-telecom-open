@@ -1,0 +1,11 @@
+services:
+  analytics-api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8086:8086"
+
+# Database and NATS are intentionally external to this example.
+# Keep analytics read-plane isolated from the SIP/charging runtime.
