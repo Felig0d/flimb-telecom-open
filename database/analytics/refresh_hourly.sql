@@ -21,8 +21,8 @@ SELECT
     count(*) FILTER (WHERE answered) AS answered,
     count(*) FILTER (WHERE NOT answered) AS failed,
     COALESCE(sum(duration_seconds) FILTER (WHERE answered), 0) AS total_connected_seconds,
-    0 AS pdd_sum_ms,
-    0 AS pdd_samples,
+    COALESCE(sum(pdd_ms) FILTER (WHERE pdd_ms IS NOT NULL), 0) AS pdd_sum_ms,
+    count(pdd_ms) AS pdd_samples,
     COALESCE(sum(sell_cost), 0) AS sell_cost,
     COALESCE(sum(buy_cost), 0) AS buy_cost
 FROM analytics_cdr
