@@ -1,0 +1,33 @@
+#### Optional OpenSIPS 3.6 drouting snippet
+#### Synthetic example only; not loaded by opensips.cfg.example
+
+# Required module examples:
+# loadmodule "db_sqlite.so"
+# loadmodule "drouting.so"
+#
+# modparam("drouting", "db_url", "sqlite:///var/lib/opensips/drouting.db")
+#
+# Initial routing:
+# if (!do_routing("1")) {
+#     sl_send_reply(503, "No Route");
+#     exit;
+# }
+#
+# Before relay:
+# t_on_failure("NEXT_GW");
+#
+# failure_route[NEXT_GW] {
+#     if (t_was_cancelled())
+#         exit;
+#
+#     if (next_routing()) {
+#         t_on_failure("NEXT_GW");
+#         t_relay();
+#         exit;
+#     }
+#
+#     t_reply(503, "No More Gateways");
+# }
+#
+# Keep gateway selection independent from dialog termination:
+# established BYE/ACK/re-INVITE must follow Record-Route/loose_route().
