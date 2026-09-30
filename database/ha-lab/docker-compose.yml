@@ -1,0 +1,18 @@
+services:
+  postgres-standby:
+    image: postgres:17
+    container_name: odin-postgres-standby-lab
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_PASSWORD: dev-only-change-me
+    volumes:
+      - standby-data:/var/lib/postgresql/data
+      - ./standby-entrypoint.sh:/usr/local/bin/standby-entrypoint.sh:ro
+    entrypoint: ["/usr/local/bin/standby-entrypoint.sh"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  standby-data:
