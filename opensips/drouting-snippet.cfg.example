@@ -1,11 +1,13 @@
 #### Optional OpenSIPS 3.6 drouting snippet
 #### Synthetic example only; not loaded by opensips.cfg.example
+#### PostgreSQL-first: no SQLite dependency.
 
 # Required module examples:
-# loadmodule "db_sqlite.so"
+# loadmodule "db_postgres.so"
 # loadmodule "drouting.so"
 #
-# modparam("drouting", "db_url", "sqlite:///var/lib/opensips/drouting.db")
+# modparam("drouting", "db_url",
+#          "postgres://opensips:CHANGE_ME@127.0.0.1:5432/opensips")
 #
 # Initial routing:
 # if (!do_routing("1")) {
@@ -29,5 +31,5 @@
 #     t_reply(503, "No More Gateways");
 # }
 #
-# Keep gateway selection independent from dialog termination:
-# established BYE/ACK/re-INVITE must follow Record-Route/loose_route().
+# Established BYE/ACK/re-INVITE follows Record-Route/loose_route().
+# Gateway/routing state is not required to terminate an established dialog.
