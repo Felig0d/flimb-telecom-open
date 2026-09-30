@@ -1,0 +1,33 @@
+# Secrets / local overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Runtime / logs / captures
+*.log
+*.pcap
+*.pcapng
+*.dump
+*.sqlite
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local evidence / private material
+.local-evidence/
+private/
+secrets/
