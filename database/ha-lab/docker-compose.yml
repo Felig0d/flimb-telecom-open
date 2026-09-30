@@ -6,7 +6,11 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     environment:
-      POSTGRES_PASSWORD: dev-only-change-me
+      POSTGRES_PASSWORD: "${STANDBY_LOCAL_PASSWORD:?set STANDBY_LOCAL_PASSWORD}"
+      PRIMARY_HOST: "${PRIMARY_HOST:-host.docker.internal}"
+      PRIMARY_PORT: "${PRIMARY_PORT:-5432}"
+      REPL_USER: "${REPL_USER:-replicator}"
+      REPL_PASSWORD: "${REPL_PASSWORD:?set REPL_PASSWORD}"
     volumes:
       - standby-data:/var/lib/postgresql/data
       - ./standby-entrypoint.sh:/usr/local/bin/standby-entrypoint.sh:ro
