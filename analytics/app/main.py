@@ -43,6 +43,7 @@ async def summary(window_minutes: int = Query(default=60, ge=1, le=10080)):
         count(*) FILTER (WHERE answered) AS answered,
         count(*) FILTER (WHERE NOT answered) AS failed,
         COALESCE(sum(duration_seconds) FILTER (WHERE answered), 0) AS connected_seconds,
+        avg(pdd_ms) FILTER (WHERE pdd_ms IS NOT NULL) AS avg_pdd_ms,
         COALESCE(sum(sell_cost), 0) AS sell_cost,
         COALESCE(sum(buy_cost), 0) AS buy_cost,
         count(*) FILTER (WHERE ra_state = 'fail') AS ra_failures
@@ -66,6 +67,7 @@ async def summary(window_minutes: int = Query(default=60, ge=1, le=10080)):
         "failed": row["failed"] or 0,
         "asr": (answered / attempts) if attempts else None,
         "acdSeconds": (connected / answered) if answered else None,
+        "avgPddMs": float(row["avg_pdd_ms"]) if row["avg_pdd_ms"] is not None else None,
         "sellCost": float(row["sell_cost"] or 0),
         "buyCost": float(row["buy_cost"] or 0),
         "grossMargin": float((row["sell_cost"] or 0) - (row["buy_cost"] or 0)),
@@ -77,10 +79,28 @@ async def summary(window_minutes: int = Query(default=60, ge=1, le=10080)):
 async def cdrs(
     limit: int = Query(default=100, ge=1),
     offset: int = Query(default=0, ge=0),
+    supplier_ref: str | None = None,
+    route_ref: str | None = None,
+    account_ref: str | None = None,
 ):
     limit = min(limit, settings.analytics_max_page_size)
 
-    sql = """
+    clauses = []
+    params: list[object] = []
+
+    if supplier_ref:
+        clauses.append("supplier_ref = %s")
+        params.append(supplier_ref)
+    if route_ref:
+        clauses.append("route_ref = %s")
+        params.append(route_ref)
+    if account_ref:
+        clauses.append("account_ref = %s")
+        params.append(account_ref)
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+    sql = f"""
     SELECT
         id,
         call_id,
@@ -95,19 +115,24 @@ async def cdrs(
         ended_at,
         duration_seconds,
         billable_seconds,
+        pdd_ms,
         sip_final_code,
         answered,
         sell_cost,
         buy_cost,
-        ra_state
+        ra_state,
+        disconnect_reason,
+        source_system
     FROM analytics_cdr
+    {where}
     ORDER BY started_at DESC
     LIMIT %s OFFSET %s
     """
+    params.extend([limit, offset])
 
     async with connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(sql, (limit, offset))
+            await cur.execute(sql, params)
             rows = await cur.fetchall()
 
     return {
@@ -125,9 +150,7 @@ async def cdrs(
 
 
 @app.get("/v1/metrics/hourly")
-async def hourly_metrics(
-    limit: int = Query(default=24, ge=1, le=24 * 30),
-):
+async def hourly_metrics(limit: int = Query(default=24, ge=1, le=24 * 30)):
     sql = """
     SELECT
         bucket_start,
@@ -154,3 +177,67 @@ async def hourly_metrics(
             rows = await cur.fetchall()
 
     return {"items": rows}
+
+
+async def grouped_metrics(group_column: str, window_minutes: int, limit: int):
+    since = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    sql = f"""
+    SELECT
+        {group_column} AS ref,
+        count(*) AS attempts,
+        count(*) FILTER (WHERE answered) AS answered,
+        count(*) FILTER (WHERE NOT answered) AS failed,
+        CASE WHEN count(*) > 0
+             THEN count(*) FILTER (WHERE answered)::numeric / count(*)::numeric
+             ELSE NULL END AS asr,
+        CASE WHEN count(*) FILTER (WHERE answered) > 0
+             THEN COALESCE(sum(duration_seconds) FILTER (WHERE answered), 0)::numeric
+                  / count(*) FILTER (WHERE answered)::numeric
+             ELSE NULL END AS acd_seconds,
+        avg(pdd_ms) FILTER (WHERE pdd_ms IS NOT NULL) AS avg_pdd_ms,
+        COALESCE(sum(sell_cost), 0) AS sell_cost,
+        COALESCE(sum(buy_cost), 0) AS buy_cost
+    FROM analytics_cdr
+    WHERE started_at >= %s
+      AND {group_column} IS NOT NULL
+    GROUP BY {group_column}
+    ORDER BY attempts DESC
+    LIMIT %s
+    """
+
+    async with connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(sql, (since, limit))
+            rows = await cur.fetchall()
+
+    return {
+        "windowMinutes": window_minutes,
+        "items": [
+            {
+                **row,
+                "asr": float(row["asr"]) if row["asr"] is not None else None,
+                "acd_seconds": float(row["acd_seconds"]) if row["acd_seconds"] is not None else None,
+                "avg_pdd_ms": float(row["avg_pdd_ms"]) if row["avg_pdd_ms"] is not None else None,
+                "sell_cost": float(row["sell_cost"] or 0),
+                "buy_cost": float(row["buy_cost"] or 0),
+                "gross_margin": float((row["sell_cost"] or 0) - (row["buy_cost"] or 0)),
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.get("/v1/metrics/suppliers")
+async def supplier_metrics(
+    window_minutes: int = Query(default=60, ge=1, le=10080),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    return await grouped_metrics("supplier_ref", window_minutes, limit)
+
+
+@app.get("/v1/metrics/routes")
+async def route_metrics(
+    window_minutes: int = Query(default=60, ge=1, le=10080),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    return await grouped_metrics("route_ref", window_minutes, limit)
